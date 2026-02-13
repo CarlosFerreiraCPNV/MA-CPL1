@@ -1,87 +1,78 @@
-# tokenizer.py – Version avec vocabulaire (mot → id)
-
 import re
-import sys
+import csv
+import os
+
+FICHIER = "mots.csv"
+
+def check_word(fichier, mot):
+    """Vérifie si le mot est déjà présent (insensible à la casse)."""
+    if not os.path.exists(fichier):
+        return False
+
+    with open(fichier, mode="r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if row["mot"].strip().lower() == mot.strip().lower():
+                return True
+    return False
 
 
-# -----------------------------------------------------------
-# 1) MODE 1 : découpe naïve par espaces
-# -----------------------------------------------------------
+def get_next_id(fichier):
+    """Récupère le prochain ID."""
+    if not os.path.exists(fichier) or os.stat(fichier).st_size == 0:
+        return 1
 
-def tokenize_whitespace(text):
-    """
-    Retourne une liste de tokens découpés par espaces.
-    """
-    return text.split()
+    with open(fichier, mode="r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        ids = [int(row["id"]) for row in reader]
 
+        if not ids:
+            return 1
 
-# -----------------------------------------------------------
-# 2) MODE 2 : découpe avec regex
-# -----------------------------------------------------------
-
-TOKEN_RE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ]+|\d+|[.,;:!?/(\\)\"]")
+        return max(ids) + 1
 
 
-def tokenize_regex(text):
-    """
-    Retourne une liste de tokens basés sur la regex.
-    """
-    return TOKEN_RE.findall(text)
+def add_word(mot):
+    """Ajoute un mot uniquement s'il n'existe pas déjà."""
+    if check_word(FICHIER, mot):
+        print(f"❌ Le mot '{mot}' existe déjà dans le CSV.")
+        return
+
+    next_id = get_next_id(FICHIER)
+    file_exists = os.path.exists(FICHIER)
+
+    with open(FICHIER, mode="a", newline="", encoding="utf-8") as f:
+        fieldnames = ["id", "mot"]
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+
+        if not file_exists or os.stat(FICHIER).st_size == 0:
+            writer.writeheader()
+
+        writer.writerow({
+            "id": next_id,
+            "mot": mot.strip()
+        })
+
+    print(f"✅ Mot '{mot}' ajouté avec ID = {next_id}")
 
 
-# -----------------------------------------------------------
-# 3) Construction du vocabulaire
-# -----------------------------------------------------------
+def show_csv():
+    if not os.path.exists(FICHIER) or os.stat(FICHIER).st_size == 0:
+        print("📭 Le fichier CSV est vide ou n'existe pas.")
+        return
 
-def build_vocab(tokens):
-    """
-    Crée un vocabulaire : token -> id unique
-    """
-    vocab = {}
-    next_id = 0
+    with open(FICHIER, mode="r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
 
-    for x in tokens:
-        if x not in vocab:
-            vocab[x] = next_id
-            next_id += 1
-
-    return vocab
+        print("\n📄 Contenu du fichier :\n")
+        for row in reader:
+            print(f"ID: {row['id']}  |  Mot: {row['mot']}")
 
 
-# -----------------------------------------------------------
-# 4) Interface en ligne de commande (CLI)
-# -----------------------------------------------------------
+txt = input("Texte à tokenizer :")
+text_split = re.findall(r"[A-Za-zÀ-ÿ0-9]+|[^A-Za-zÀ-ÿ0-9\s]", txt)
 
-# Usage :
-# python tokenizer.py whitespace "le chat et le chat"
-# python tokenizer.py regex "Bonjour le monde ! Bonjour !"
+for x in range(len(text_split)):
+    add_word(text_split[x])
 
-if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        sys.exit(1)
-
-    mode = sys.argv[1]
-    text = " ".join(sys.argv[2:])
-
-    # Tokenisation
-    if mode == "whitespace":
-        tokens = tokenize_whitespace(text)
-    elif mode == "regex":
-        tokens = tokenize_regex(text)
-    else:
-        print("Mode inconnu.")
-        sys.exit(1)
-
-    # Vocabulaire
-    vocab = build_vocab(tokens)
-
-    token_result = []
-
-    # Affichage
-    print(F"ID      mot\n")
-    for x in tokens:
-        print(f"{vocab[x]}\t{x}")
-        token_result.append(vocab[x])
-
-    print("\nALL TOKENS")
-    print(token_result)
+show_csv()
