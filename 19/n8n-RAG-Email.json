@@ -1,0 +1,72 @@
+{
+  "name": "n8n-RAG-Email",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const first = items[0]?.json || {};\n      const incomingSubject = first.incoming_subject || '';\n      const incomingBody = first.incoming_body_text || '';\n      const incomingSender = first.incoming_sender || '';\n\n      const similarEmails = items.map((item, index) => {\n        const j = item.json;\n        return `Email ${index + 1}:\nSujet: ${j.subject || ''}\nContenu: ${j.body_text || ''}\nSimilarité: ${typeof j.similarity === 'number' ? j.similarity.toFixed(4) : j.similarity}`;\n      }).join('\n\n');\n\n      const prompt = `EMAIL REÇU\nSujet: ${incomingSubject}\nExpéditeur: ${incomingSender}\nContenu: ${incomingBody}\n\nEMAILS SIMILAIRES\n${similarEmails}\n\nCONSIGNE\nTu es un assistant chargé de rédiger une réponse email professionnelle en français.\nUtilise les emails similaires comme contexte.\nN'invente pas d'informations absentes du contexte.\nSi le contexte est insuffisant, réponds de manière prudente et générale.\nRetourne uniquement le texte de la réponse email.`;\n\n      return [{ json: { prompt } }];"
+      },
+      "id": "1",
+      "name": "Build RAG Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        380,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://gpu.cpnv.me:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"model\": \"mistral\",\n  \"prompt\": $json.prompt,\n  \"stream\": false\n} }}"
+      },
+      "id": "2",
+      "name": "HTTP Request - Generate Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => ({\n  json: {\n    generated_reply: item.json.response || ''\n  }\n}));"
+      },
+      "id": "3",
+      "name": "Format Generated Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1020,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Build RAG Prompt": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Generate Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Generate Reply": {
+      "main": [
+        [
+          {
+            "node": "Format Generated Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

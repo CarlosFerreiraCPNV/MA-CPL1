@@ -1,0 +1,175 @@
+{
+  "name": "n8n-Similitude",
+  "nodes": [
+    {
+      "parameters": {
+        "event": "messageReceived"
+      },
+      "id": "1",
+      "name": "Microsoft Outlook Trigger",
+      "type": "n8n-nodes-base.microsoftOutlookTrigger",
+      "typeVersion": 1,
+      "position": [
+        120,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n        const subject = item.json.subject || \"\";\n        const body = item.json.body || item.json.bodyPreview || \"\";\n        return {\n          json: {\n            ...item.json,\n            text_for_embedding: `search_query: Objet: ${subject}\nMessage:\n${body}`\n          }\n        };\n      });"
+      },
+      "id": "2",
+      "name": "Code in JavaScript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://gpu.cpnv.me:11434/api/embeddings",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"model\": \"nomic-embed-text-v2-moe\",\n  \"input\": $json.text_for_embedding\n} }}"
+      },
+      "id": "3",
+      "name": "HTTP Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        680,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine"
+      },
+      "id": "4",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        680,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "/data/embeddingNom.json"
+      },
+      "id": "5",
+      "name": "Read/Write Files from Disk",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        940,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "options": {}
+      },
+      "id": "6",
+      "name": "Extract from File",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function cosineSimilarity(a, b) {\n  if (!Array.isArray(a) || !Array.isArray(b)) return 0;\n  if (a.length !== b.length) return 0;\n  let dot = 0;\n  let normA = 0;\n  let normB = 0;\n  for (let i = 0; i < a.length; i++) {\n    dot += a[i] * b[i];\n    normA += a[i] * a[i];\n    normB += b[i] * b[i];\n  }\n  return dot / (Math.sqrt(normA) * Math.sqrt(normB));\n}\n\nconst incoming = $('Merge').first().json;\nconst incomingEmbedding = incoming.embedding || incoming.embeddings?.[0];\nif (!incomingEmbedding) {\n  throw new Error('Embedding entrant introuvable');\n}\n\nconst fileItems = $('Extract from File').all();\nconst corpus = [];\nfor (const fileItem of fileItems) {\n  const rows = fileItem.json.data || [];\n  for (const row of rows) {\n    try {\n      const mail = JSON.parse(row.line);\n      if (Array.isArray(mail.embedding)) {\n        corpus.push(mail);\n      }\n    } catch (e) {}\n  }\n}\n\nconst results = corpus\n  .filter(mail => mail.message_id !== incoming.message_id)\n  .map(mail => ({\n    json: {\n      incoming_subject: incoming.subject || '',\n      incoming_body_text: incoming.body || incoming.bodyPreview || '',\n      incoming_sender: incoming.from || '',\n      subject: mail.subject,\n      body_text: mail.body_text,\n      sender: mail.sender,\n      similarity: cosineSimilarity(incomingEmbedding, mail.embedding)\n    }\n  }))\n  .sort((a, b) => b.json.similarity - a.json.similarity)\n  .slice(0, 3);\n\nreturn results;"
+      },
+      "id": "7",
+      "name": "Code in JavaScript1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1460,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "Microsoft Outlook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

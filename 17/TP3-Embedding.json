@@ -1,0 +1,202 @@
+{
+  "name": "TP3-Embedding",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "getAll"
+      },
+      "id": "2",
+      "name": "Récupère les messages Outlook",
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n        const j = item.json;\n        const messageId = j.id || '';\n        const conversationId = j.conversationId || '';\n        const sender = j.from || '';\n        const subject = j.subject || '';\n        const bodyText = j.bodyPreview || '';\n        const recipients = Array.isArray(j.to) ? j.to.join(', ') : '';\n        const hasAttachments = j.hasAttachments ?? false;\n        const textForEmbedding =\n          `search_document: Objet: ${subject}\n` +\n          `Expéditeur: ${sender}\n` +\n          `Destinataire(s): ${recipients}\n` +\n          `Message:\n${bodyText}`;\n        return {\n          json: {\n            message_id: messageId,\n            conversation_id: conversationId,\n            mailbox: 'etudiant@cpnv.me',\n            sender,\n            subject,\n            body_text: bodyText,\n            recipients,\n            has_attachments: hasAttachments,\n            text_for_embedding: textForEmbedding\n          }\n        };\n      });"
+      },
+      "id": "3",
+      "name": "Crée un texte condensé du mail",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://gpu.cpnv.me:11434/api/embeddings",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"model\": \"nomic-embed-text-v2-moe\",\n  \"input\": $json.text_for_embedding\n} }}"
+      },
+      "id": "4",
+      "name": "Calcul de l'embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        900,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "position"
+      },
+      "id": "5",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        900,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const j = item.json;\n  const record = {\n    message_id: j.message_id,\n    conversation_id: j.conversation_id,\n    mailbox: j.mailbox,\n    sender: j.sender,\n    recipients: j.recipients,\n    subject: j.subject,\n    body_text: j.body_text,\n    has_attachments: j.has_attachments,\n    text_for_embedding: j.text_for_embedding,\n    embedding_model: j.model,\n    embedding: Array.isArray(j.embeddings) ? j.embeddings[0] : [],\n    created_at: new Date().toISOString()\n  };\n  return { json: { line: JSON.stringify(record) } };\n});"
+      },
+      "id": "6",
+      "name": "Transforme les données",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toJson",
+        "options": {},
+        "fileName": "embeddingsVotreNom.json",
+        "outputFieldName": "data"
+      },
+      "id": "7",
+      "name": "Convertit en un fichier",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1420,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "/data/embeddingsVotreNom.jsonl",
+        "dataPropertyName": "data"
+      },
+      "id": "8",
+      "name": "Écrit sur le disque",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        380
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Récupère les messages Outlook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Récupère les messages Outlook": {
+      "main": [
+        [
+          {
+            "node": "Crée un texte condensé du mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crée un texte condensé du mail": {
+      "main": [
+        [
+          {
+            "node": "Calcul de l'embedding",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Transforme les données",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transforme les données": {
+      "main": [
+        [
+          {
+            "node": "Convertit en un fichier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convertit en un fichier": {
+      "main": [
+        [
+          {
+            "node": "Écrit sur le disque",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcul de l'embedding": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

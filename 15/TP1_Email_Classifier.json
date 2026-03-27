@@ -1,0 +1,96 @@
+{
+  "name": "TP1_Email_Classifier_PrenomNom",
+  "nodes": [
+    {
+      "parameters": {
+        "event": "messageReceived"
+      },
+      "id": "1",
+      "name": "Microsoft Outlook Trigger",
+      "type": "n8n-nodes-base.microsoftOutlookTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n        const email = item.json;\n        const subject = email.subject || \"\";\n        const body = email.bodyPreview || email.body || \"\";\n        const sender = email.from || \"\";\n        const messageId = email.id || \"\";\n        const emailText = `Objet: ${subject}\nExpéditeur: ${sender}\nMessage:\n${body}`;\n        return {\n          json: {\n            messageId,\n            subject,\n            sender,\n            body,\n            emailText\n          }\n        };\n      });"
+      },
+      "id": "2",
+      "name": "Prépare données",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://gpu.cpnv.me:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"model\": \"Matheswaran/email-classifier:latest\",\n  \"prompt\": \"Classify the following email and return JSON only.\\n\\n\" + $json.emailText,\n  \"stream\": false\n} }}"
+      },
+      "id": "3",
+      "name": "Envois à API Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        740,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const parsed = JSON.parse(item.json.response);\n  const classification = parsed.classifications?.[0] || {};\n  return {\n    json: {\n      requestType: classification.requestType || \"\",\n      requestSubType: classification.requestSubType?.[0] || \"\",\n      confidenceScore: parsed.confidenceScore || null,\n      reasoning: parsed.reasoning || \"\",\n      outlookCategory: classification.requestType || \"Other\"\n    }\n  };\n});"
+      },
+      "id": "4",
+      "name": "Mise en forme données",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1020,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Microsoft Outlook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prépare données",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prépare données": {
+      "main": [
+        [
+          {
+            "node": "Envois à API Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envois à API Ollama": {
+      "main": [
+        [
+          {
+            "node": "Mise en forme données",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
