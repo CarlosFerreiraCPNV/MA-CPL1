@@ -1,0 +1,21 @@
+id,email_text,label_attendu
+1,"Pouvez-vous me rappeler ?",Oui
+2,"Merci pour votre aide.",Non
+3,"Est-ce possible d'avoir le document ?",Oui
+4,"Ceci est juste une information.",Non
+5,"Merci de me répondre rapidement.",Oui
+6,"Le rendez-vous est confirmé pour demain.",Non
+7,"Peux-tu m'envoyer le fichier PDF ?",Oui
+8,"Je vous informe que le serveur sera arrêté ce soir.",Non
+9,"Avez-vous terminé le rapport ?",Oui
+10,"Bravo pour votre présentation.",Non
+11,"Pouvez-vous valider ma demande d'inscription ?",Oui
+12,"Le cours commence à 8h demain matin.",Non
+13,"Merci de confirmer votre présence.",Oui
+14,"Votre colis a bien été expédié.",Non
+15,"Peut-on décaler la réunion à vendredi ?",Oui
+16,"Je vous souhaite une bonne journée.",Non
+17,"Merci de m'envoyer les résultats dès que possible.",Oui
+18,"Le mot de passe a été réinitialisé.",Non
+19,"As-tu une disponibilité cet après-midi ?",Oui
+20,"La maintenance du réseau est terminée.",Non
