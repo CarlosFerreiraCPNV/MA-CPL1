@@ -1,8 +1,8 @@
 import math
 
-W1 = 1.3
-W2 = -0.7
-B = -0.2
+W1 = -0.6584
+W2 = 0.5638
+B = -1.6678
 
 # exemple de DATA (X1, X2, réponse attendue)
 DATA = [
