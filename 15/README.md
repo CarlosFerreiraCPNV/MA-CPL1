@@ -1,4 +1,3 @@
-
 # Exercice 15 — Classification automatique d’emails avec n8n et IA
 
 ## Fichier à rendre
@@ -15,18 +14,18 @@
    - `reasoning`
    - `outlookCategory`
 
-## Exemple de résultat attendu
+## JSON de sortie à mettre dans le README
 ```json
 {
-  "requestType": "Appointment Request",
-  "requestSubType": "Meeting Request",
+  "requestType": "Meeting Request",
+  "requestSubType": "Appointment Scheduling",
   "confidenceScore": 95,
   "reasoning": "The email subject and the body text of the email suggest that the sender is requesting a meeting.",
-  "outlookCategory": "Appointment Request"
+  "outlookCategory": "Meeting Request"
 }
 ```
 
 ## Remarques
-- Le node HTTP Request doit envoyer un JSON avec `model`, `prompt` et `stream: false`.
-- Le prompt doit demander **du JSON uniquement**.
-- Dans n8n, adapte les credentials Outlook OAuth2 avant d’exécuter.
+- Le node HTTP Request doit envoyer `model`, `prompt` et `stream: false`.
+- Le prompt doit demander du JSON uniquement.
+- Adapte les credentials Outlook OAuth2 avant l’exécution.
